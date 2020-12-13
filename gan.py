@@ -6,7 +6,8 @@ class conv_block(nn.Module):
     """
     Convolution block containing a convolution layer, ReLU activation and Batchnorm layer.
     """
-    def __init__(self, input_channels, output_channels, kernel_size=3, stride=1, padding=1, output_padding=1, upsample=False):
+    def __init__(self, input_channels, output_channels, kernel_size=3, stride=1, padding=1, output_padding=1,
+                 upsample=False, leaky=False):
         super().__init__()
         if upsample:
             self.conv = nn.ConvTranspose2d(input_channels, output_channels, kernel_size, stride=stride, padding=padding,
@@ -14,7 +15,10 @@ class conv_block(nn.Module):
         else:
             self.conv = nn.Conv2d(input_channels, output_channels, kernel_size, stride=stride, padding=padding)
         self.bn = torch.nn.BatchNorm2d(output_channels)
-        self.relu = nn.ReLU()
+        if leaky:
+            self.relu = nn.LeakyReLU(0.2)
+        else:
+            self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.conv(x)
@@ -44,24 +48,26 @@ class Generator(nn.Module):
         self.linear = nn.Linear(128, 12544)
         self.conv_layers = nn.Sequential(*[conv_block(256, 128, stride=2, upsample=True), 
                                            conv_block(128, 64, output_padding=0, upsample=True), 
-                                           conv_block(64, 32, output_padding=0, upsample=True), 
-                                           conv_block(32, 1, stride=2, upsample=True)])
+                                           conv_block(64, 32, output_padding=0, upsample=True)])
+
+        self.final_conv = nn.ConvTranspose2d(32, 1, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = self.linear(x)
         x = x.view(x.shape[0], -1, 7, 7)
         x = self.conv_layers(x)
+        x = self.final_conv(x)
         x = self.tanh(x)
         return x
 
 class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv_layers = nn.Sequential(*[conv_block(1, 32, stride=2), 
-                                           conv_block(32, 64), 
-                                           conv_block(64, 128),
-                                           conv_block(128, 256, stride=2)])
+        self.conv_layers = nn.Sequential(*[conv_block(1, 32, stride=2, leaky=True), 
+                                           conv_block(32, 64, leaky=True), 
+                                           conv_block(64, 128, leaky=True),
+                                           conv_block(128, 256, stride=2, leaky=True)])
         self.linear = nn.Linear(12544, 1)
         self.softmax = nn.Softmax()
 
