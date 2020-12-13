@@ -35,8 +35,8 @@ def train(discriminator,
 
             real_samples = sample.to(device)
 
-            real = torch.Tensor([0]).to(device).long()
-            fake = torch.Tensor([1]).to(device).long()
+            real = torch.Tensor([0]).to(device).float()
+            fake = torch.Tensor([1]).to(device).float()
             real = real.repeat(sample.shape[0])
             fake = fake.repeat(sample.shape[0])
 
@@ -88,7 +88,7 @@ def train(discriminator,
 if __name__ == '__main__':
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     print("Training starting on device {}".format(device))
-    writer = SummaryWriter('/blue/vemuri/josebouza/projects/GAN/logs/runs/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")))
+    writer = SummaryWriter('/blue/vemuri/josebouza/projects/DCGAN/logs/runs/{}'.format(datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S")))
     tr = transforms.Compose([transforms.ToTensor(),
                              transforms.Normalize(mean=(0.5,), std=(0.5,))])
     dataset = MNIST('/blue/vemuri/josebouza/data/mnist/', 
@@ -99,5 +99,5 @@ if __name__ == '__main__':
                             num_workers=4)
     generator = Generator().to(device)
     discriminator = Discriminator().to(device)
-    train(discriminator, generator, torch.optim.Adam, dataloader, nn.CrossEntropyLoss().to(device), device, writer)
+    train(discriminator, generator, torch.optim.Adam, dataloader, nn.BCEWithLogitsLoss().to(device), device, writer)
     torch.save(model.state_dict(), '/blue/vemuri/josebouza/projects/GAN/model.pt')
